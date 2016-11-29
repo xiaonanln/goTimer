@@ -5,6 +5,14 @@ import (
 	"testing"
 	"time"
 
+	"math/rand"
+
+	"log"
+
+	"runtime/pprof"
+
+	"os"
+
 	"github.com/xiaonanln/goTimer"
 )
 
@@ -89,4 +97,28 @@ func TestCancelTimer(t *testing.T) {
 	if x != 0 {
 		t.Fatalf("x should be 0, but is %v", x)
 	}
+}
+
+func TestTimerPerformance(t *testing.T) {
+	f, err := os.Create("TestTimerPerformance.cpuprof")
+	if err != nil {
+		panic(err)
+	}
+
+	pprof.StartCPUProfile(f)
+	duration := 10 * time.Second
+
+	for i := 0; i < 400000; i++ {
+		if rand.Float32() < 0.5 {
+			d := time.Duration(rand.Int63n(int64(duration)))
+			timer.AddCallback(d, func() {})
+		} else {
+			d := time.Duration(rand.Int63n(int64(time.Second)))
+			timer.AddTimer(d, func() {})
+		}
+	}
+
+	log.Println("Waiting for", duration, "...")
+	time.Sleep(duration)
+	pprof.StopCPUProfile()
 }

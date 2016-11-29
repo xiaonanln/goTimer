@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"runtime/debug"
+	"sync"
 	"time"
 )
 
@@ -61,7 +62,8 @@ func (h *_TimerHeap) Pop() (ret interface{}) {
 type CallbackFunc func()
 
 var (
-	timerHeap _TimerHeap
+	timerHeap     _TimerHeap
+	timerHeapLock sync.RWMutex
 )
 
 func init() {
@@ -76,7 +78,9 @@ func AddCallback(d time.Duration, callback CallbackFunc) *timer {
 		callback: callback,
 		repeat:   false,
 	}
+	timerHeapLock.Lock()
 	heap.Push(&timerHeap, t)
+	timerHeapLock.Unlock()
 	return t
 }
 
@@ -92,13 +96,18 @@ func AddTimer(d time.Duration, callback CallbackFunc) *timer {
 		callback: callback,
 		repeat:   true,
 	}
+	timerHeapLock.Lock()
 	heap.Push(&timerHeap, t)
+	timerHeapLock.Unlock()
 	return t
 }
 
 // Tick once for timers
 func Tick() {
 	now := time.Now()
+	isWriteLock := false
+	timerHeapLock.RLock()
+
 	for {
 		if timerHeap.Len() <= 0 {
 			break
@@ -109,7 +118,14 @@ func Tick() {
 		if nextFireTime.After(now) {
 			break
 		}
+		// require a write lock since then
+		if !isWriteLock {
+			timerHeapLock.RUnlock()
+			timerHeapLock.Lock()
+			isWriteLock = true
+		}
 		t := heap.Pop(&timerHeap).(*timer)
+
 		if t.cancelled {
 			continue
 		}
@@ -128,6 +144,11 @@ func Tick() {
 			}
 			heap.Push(&timerHeap, t)
 		}
+	}
+	if !isWriteLock {
+		timerHeapLock.RUnlock()
+	} else {
+		timerHeapLock.Unlock()
 	}
 }
 
