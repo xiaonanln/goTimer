@@ -13,7 +13,7 @@ const (
 	MIN_TIMER_INTERVAL = 1 * time.Millisecond
 )
 
-type timer struct {
+type Timer struct {
 	fireTime  time.Time
 	interval  time.Duration
 	callback  CallbackFunc
@@ -21,16 +21,16 @@ type timer struct {
 	cancelled bool
 }
 
-func (t *timer) Cancel() {
+func (t *Timer) Cancel() {
 	t.cancelled = true
 }
 
-func (t *timer) IsActive() bool {
+func (t *Timer) IsActive() bool {
 	return !t.cancelled
 }
 
 type _TimerHeap struct {
-	timers []*timer
+	timers []*Timer
 }
 
 func (h *_TimerHeap) Len() int {
@@ -42,14 +42,14 @@ func (h *_TimerHeap) Less(i, j int) bool {
 }
 
 func (h *_TimerHeap) Swap(i, j int) {
-	var tmp *timer
+	var tmp *Timer
 	tmp = h.timers[i]
 	h.timers[i] = h.timers[j]
 	h.timers[j] = tmp
 }
 
 func (h *_TimerHeap) Push(x interface{}) {
-	h.timers = append(h.timers, x.(*timer))
+	h.timers = append(h.timers, x.(*Timer))
 }
 
 func (h *_TimerHeap) Pop() (ret interface{}) {
@@ -71,8 +71,8 @@ func init() {
 }
 
 // Add a callback which will be called after specified duration
-func AddCallback(d time.Duration, callback CallbackFunc) *timer {
-	t := &timer{
+func AddCallback(d time.Duration, callback CallbackFunc) *Timer {
+	t := &Timer{
 		fireTime: time.Now().Add(d),
 		interval: d,
 		callback: callback,
@@ -85,12 +85,12 @@ func AddCallback(d time.Duration, callback CallbackFunc) *timer {
 }
 
 // Add a timer which calls callback periodly
-func AddTimer(d time.Duration, callback CallbackFunc) *timer {
+func AddTimer(d time.Duration, callback CallbackFunc) *Timer {
 	if d < MIN_TIMER_INTERVAL {
 		d = MIN_TIMER_INTERVAL
 	}
 
-	t := &timer{
+	t := &Timer{
 		fireTime: time.Now().Add(d),
 		interval: d,
 		callback: callback,
@@ -124,7 +124,7 @@ func Tick() {
 			timerHeapLock.Lock()
 			isWriteLock = true
 		}
-		t := heap.Pop(&timerHeap).(*timer)
+		t := heap.Pop(&timerHeap).(*Timer)
 
 		if t.cancelled {
 			continue

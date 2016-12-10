@@ -64,6 +64,7 @@ func TestTimer(t *testing.T) {
 func TestCancelCallback(t *testing.T) {
 	INTERVAL := 20 * time.Millisecond
 	x := 0
+
 	timer := timer.AddCallback(INTERVAL, func() {
 		x = 1
 	})
