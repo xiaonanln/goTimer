@@ -63,7 +63,7 @@ type CallbackFunc func()
 
 var (
 	timerHeap     _TimerHeap
-	timerHeapLock sync.RWMutex
+	timerHeapLock sync.Mutex
 )
 
 func init() {
@@ -105,8 +105,7 @@ func AddTimer(d time.Duration, callback CallbackFunc) *Timer {
 // Tick once for timers
 func Tick() {
 	now := time.Now()
-	isWriteLock := false
-	timerHeapLock.RLock()
+	timerHeapLock.Lock()
 
 	for {
 		if timerHeap.Len() <= 0 {
@@ -118,12 +117,7 @@ func Tick() {
 		if nextFireTime.After(now) {
 			break
 		}
-		// require a write lock since then
-		if !isWriteLock {
-			timerHeapLock.RUnlock()
-			timerHeapLock.Lock()
-			isWriteLock = true
-		}
+
 		t := heap.Pop(&timerHeap).(*Timer)
 
 		if t.cancelled {
@@ -133,8 +127,10 @@ func Tick() {
 		if !t.repeat {
 			t.cancelled = true
 		}
-
+		// unlock the lock to run callback, because callback may add more callbacks / timers
+		timerHeapLock.Unlock()
 		runCallback(t.callback)
+		timerHeapLock.Lock()
 
 		if t.repeat {
 			// add Timer back to heap
@@ -145,11 +141,7 @@ func Tick() {
 			heap.Push(&timerHeap, t)
 		}
 	}
-	if !isWriteLock {
-		timerHeapLock.RUnlock()
-	} else {
-		timerHeapLock.Unlock()
-	}
+	timerHeapLock.Unlock()
 }
 
 // Start the self-ticking routine, which ticks per tickInterval
