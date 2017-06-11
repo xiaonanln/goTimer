@@ -61,6 +61,23 @@ func TestTimer(t *testing.T) {
 	}
 }
 
+func TestCallbackSeq(t *testing.T) {
+	a := 0
+	d := time.Second
+
+	for i := 0; i < 100; i++ {
+		i := i
+		timer.AddCallback(d, func() {
+			if a != i {
+				t.Error(i, a)
+			}
+
+			a += 1
+		})
+	}
+	time.Sleep(d + time.Second*1)
+}
+
 func TestCancelCallback(t *testing.T) {
 	INTERVAL := 20 * time.Millisecond
 	x := 0

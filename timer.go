@@ -13,12 +13,17 @@ const (
 	MIN_TIMER_INTERVAL = 1 * time.Millisecond
 )
 
+var (
+	nextAddSeq uint = 1
+)
+
 type Timer struct {
 	fireTime  time.Time
 	interval  time.Duration
 	callback  CallbackFunc
 	repeat    bool
 	cancelled bool
+	addseq    uint
 }
 
 func (t *Timer) Cancel() {
@@ -38,7 +43,17 @@ func (h *_TimerHeap) Len() int {
 }
 
 func (h *_TimerHeap) Less(i, j int) bool {
-	return h.timers[i].fireTime.Before(h.timers[j].fireTime)
+	//log.Println(h.timers[i].fireTime, h.timers[j].fireTime)
+	t1, t2 := h.timers[i].fireTime, h.timers[j].fireTime
+	if t1.Before(t2) {
+		return true
+	}
+
+	if t1.After(t2) {
+		return false
+	}
+	// t1 == t2, making sure Timer with same deadline is fired according to their add order
+	return h.timers[i].addseq < h.timers[j].addseq
 }
 
 func (h *_TimerHeap) Swap(i, j int) {
@@ -79,6 +94,9 @@ func AddCallback(d time.Duration, callback CallbackFunc) *Timer {
 		repeat:   false,
 	}
 	timerHeapLock.Lock()
+	t.addseq = nextAddSeq // set addseq when locked
+	nextAddSeq += 1
+
 	heap.Push(&timerHeap, t)
 	timerHeapLock.Unlock()
 	return t
@@ -97,6 +115,9 @@ func AddTimer(d time.Duration, callback CallbackFunc) *Timer {
 		repeat:   true,
 	}
 	timerHeapLock.Lock()
+	t.addseq = nextAddSeq // set addseq when locked
+	nextAddSeq += 1
+
 	heap.Push(&timerHeap, t)
 	timerHeapLock.Unlock()
 	return t
@@ -138,6 +159,8 @@ func Tick() {
 			if !t.fireTime.After(now) {
 				t.fireTime = now.Add(t.interval)
 			}
+			t.addseq = nextAddSeq
+			nextAddSeq += 1
 			heap.Push(&timerHeap, t)
 		}
 	}
