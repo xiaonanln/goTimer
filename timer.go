@@ -156,7 +156,7 @@ func Tick() {
 		if t.repeat {
 			// add Timer back to heap
 			t.fireTime = t.fireTime.Add(t.interval)
-			if !t.fireTime.After(now) {
+			if !t.fireTime.After(now) { // might happen when interval is very small
 				t.fireTime = now.Add(t.interval)
 			}
 			t.addseq = nextAddSeq
