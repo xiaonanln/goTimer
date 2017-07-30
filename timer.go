@@ -28,6 +28,7 @@ type Timer struct {
 
 func (t *Timer) Cancel() {
 	t.cancelled = true
+	t.callback = nil
 }
 
 func (t *Timer) IsActive() bool {
