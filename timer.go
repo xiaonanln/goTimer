@@ -18,21 +18,19 @@ var (
 )
 
 type Timer struct {
-	fireTime  time.Time
-	interval  time.Duration
-	callback  CallbackFunc
-	repeat    bool
-	cancelled bool
-	addseq    uint
+	fireTime time.Time
+	interval time.Duration
+	callback CallbackFunc
+	repeat   bool
+	addseq   uint
 }
 
 func (t *Timer) Cancel() {
-	t.cancelled = true
 	t.callback = nil
 }
 
 func (t *Timer) IsActive() bool {
-	return !t.cancelled
+	return t.callback != nil
 }
 
 type _TimerHeap struct {
@@ -142,16 +140,17 @@ func Tick() {
 
 		t := heap.Pop(&timerHeap).(*Timer)
 
-		if t.cancelled {
+		callback := t.callback
+		if callback == nil {
 			continue
 		}
 
 		if !t.repeat {
-			t.cancelled = true
+			t.callback = nil
 		}
 		// unlock the lock to run callback, because callback may add more callbacks / timers
 		timerHeapLock.Unlock()
-		runCallback(t.callback)
+		runCallback(callback)
 		timerHeapLock.Lock()
 
 		if t.repeat {
